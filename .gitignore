@@ -6,9 +6,7 @@
 .ipynb_checkpoints
 .idea
 
-src/__pycache__
-src/login.py
-stanford-ner-2016-10-31/
+__pycache__
 
-src/pickledfeatures/
-src/pickled/
+pickledfeatures/
+pickled/
