@@ -9,9 +9,6 @@ import ijson
 from re import sub
 from datetime import datetime
 
-TWEET_LINK_RE = "https://t.co/(\w)+"
-TWEET_HANDLE_RE = "@(\w)+"
-
 def list_from_json(json_file):
     """Return a list corresponding to contents of json file"""
 
@@ -37,7 +34,7 @@ def merge_json_filenames(json_lst):
     to_date = datetime.strftime(sorted_dates[-1], "%Y-%m-%d")
     return "{}_{}.json".format(from_date, to_date)
 
-def tweet_map(json_file, tweet_func, save=False):
+def json_map(json_file, json_func, save=False):
     """
     Apply a function to each tweet in a json file
 
@@ -45,57 +42,37 @@ def tweet_map(json_file, tweet_func, save=False):
     tweet_func - function that takes in a 'tweet' object, and returns a 'tweet' object
     save (optional) - overwrite json_file with modified json
 
-    returns list where each tweet has tweet_func applied to it
+    returns list where each json has json_func applied to it
     """
 
-    mapped_tweets = []
+    mapped_jsons = []
     with open(json_file, 'r') as f:
         # stream through f using ijson.items
-        for tweet in ijson.items(f, "item"):
-            mapped_tweets.append(tweet_func(tweet))
+        for json in ijson.items(f, "item"):
+            mapped_jsons.append(json_func(json))
     if save:
-        list_to_json(mapped_tweets, json_file)
-    return mapped_tweets
+        list_to_json(mapped_jsons, json_file)
+    return mapped_jsons
 
-def tweet_map(tweets, tweet_func):
+def json_map(jsons, json_func):
     """
-    Apply a function to each tweet in a list of tweets
+    Apply a function to each json in a list of jsons
     """
 
-    return [tweet_func(tweet) for tweet in tweets]
+    return [json_func(json) for json in jsons]
 
-def tweet_iterate(json_file, key=None):
+def json_iterate(json_file, key=None):
     """
     Stream through objects in a json file
 
-    json_file - path to tweet json file
-    key (optional) - single key value of interest (ex: return only "text" field, or only "id" field of each tweet)
+    json_file - path to json json file
+    key (optional) - single key value of interest (ex: return only "text" field, or only "id" field of each json)
     """
 
     with open(json_file, 'r') as f:
         if key:
-            for tweet in ijson.items(f, "item.{}".format(key)):
-                yield tweet
+            for json in ijson.items(f, "item.{}".format(key)):
+                yield json
         else:
-            for tweet in ijson.items(f, "item"):
-                yield tweet
-
-def replaceLinksMentions(tweet):
-    """
-    Take tweet and return tweet with new field "ner_text" where links and handles are replaced by tokens
-    """
-    # replace embedded urls/media with [url], [media], or [url_media]
-    ner_text = tweet["text"]
-    if tweet["media"] or tweet["urls"]:
-        if tweet['media'] and tweet['urls']:
-            replacement_word = 'UrlMediaTOK'
-        elif tweet['media']:
-            replacement_word = "MediaTOK"
-        else:
-            replacement_word = "UrlTok"
-        # replace twitter links with appropriate tag
-        ner_text = sub(TWEET_LINK_RE, replacement_word, ner_text)
-    # replace handles with appropriate tag
-    ner_text = sub(TWEET_HANDLE_RE, "NameTOK", ner_text)
-    tweet["ner_text"] = ner_text
-    return tweet
+            for json in ijson.items(f, "item"):
+                yield json

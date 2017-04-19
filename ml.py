@@ -218,7 +218,7 @@ def shuffleFeatures(sarcasticFeats, seriousFeats):
     feats = sarcasticFeats + seriousFeats[:len(sarcasticFeats)]
     shuffle(feats)
     (features, sarcasm) = list(zip(*feats))
-    return features, sarcasm
+    return list(features), list(sarcasm)
 
 
 def flattenFeatureDicts(features, leaveOut=None):
