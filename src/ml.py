@@ -2,7 +2,7 @@ import pickle
 import warnings
 from copy import deepcopy
 from datetime import datetime
-from itertools import islice
+from itertools import islice, tee
 from os import listdir
 from random import shuffle
 
@@ -32,62 +32,6 @@ FILENAME_REGEX = r'[ :<>".*,|\/]+'
 PICKLED_FEATS_DIR = 'pickledfeatures/'
 JSON_DIR = '../json/'
 
-
-def reduceFeatures(X_train, X_test, y_train, dv, percent):
-    dvc = deepcopy(dv)
-    print("\n\nFeatures before reduction: " + str(X_train.shape))
-    reducer = SelectPercentile(score_func=f_classif, percentile=percent)
-    X_train = reducer.fit_transform(X_train, y_train)
-    X_test = reducer.transform(X_test)
-    print("\n\nFeatures after reduction: " + str(str(X_train.shape)))
-    support = reducer.get_support()
-    dvc.restrict(support)
-    return X_train, X_test, dvc
-
-
-def train(i, X_train, y_train, classifiers):
-    warnings.filterwarnings("ignore")
-    print("\n\nStarting to train...")
-    r = {}
-    for n, c in enumerate(classifiers):
-        s = datetime.now()
-        c.fit(X_train, y_train)
-        time = (datetime.now() - s).total_seconds()
-        r[(i, n, str(type(c)))] = {'trainTime': time}
-        print("Trained:\t%d\t%s\tTime: %d" % (n, str(type(c)), time))
-    return classifiers, r
-
-
-def test(i, X_test, y_test, classifiers):
-    print("\n\nStarting to test...")
-    r = {}
-    for n, c in enumerate(classifiers):
-        s = datetime.now()
-        score = c.score(X_test, y_test)
-        time = (datetime.now() - s).total_seconds()
-        r[(i, n, str(type(c)))] = {'testTime': time, 'score': score}
-        print("Tested:\t%d\t%s\tTime: %d\tScore:\t%f" % (n, str(type(c)), time, score))
-    return classifiers, r
-
-
-def pickleClassifiersDV(i, classifiers, dvc, startTime, voting=False, extra=""):
-    if voting:
-        pickle.dump((classifiers, dvc),
-                    open('pickled/' + sub(FILENAME_REGEX, "", str(startTime)) + " " + str(i) + 'voting' + extra + '.pickle', 'wb'))
-    else:
-        pickle.dump((classifiers, dvc),
-                    open('pickled/' + sub(FILENAME_REGEX, "", str(startTime)) + " " + str(i) + 'voting' + extra + '.pickle', 'wb'))
-
-def loadClassifiersDV(file=None):
-    if file:
-        classifiers, dvc =  pickle.load(open(file, 'rb'))
-        return [(classifiers, dvc)]
-    cdv = []
-    for file in listdir('pickled'):
-        (c, dv) = pickle.load(open('pickled/'+file, 'rb'))
-        cdv.append((c, dv))
-    return cdv
-
 def trainTest(X, y, classifiers=DEFAULT_CLASSIFIERS, reduce=0, splits=10, trainsize=0.8, testsize=0.2):
     sss = StratifiedShuffleSplit(n_splits=splits, test_size=testsize, train_size=trainsize)
     results = []
@@ -98,142 +42,41 @@ def trainTest(X, y, classifiers=DEFAULT_CLASSIFIERS, reduce=0, splits=10, trains
         y_test = y[test_index]
 
         if reduce > 0:
-            print("\n\nFeatures before reduction: " + str(X_train.shape))
+            print("Features before reduction: " + str(X_train.shape))
             reducer = SelectKBest(score_func=f_classif, k=reduce)
             X_train = reducer.fit_transform(X_train, y_train)
             X_test = reducer.transform(X_test)
-            print("\n\nFeatures after reduction: " + str(str(X_train.shape)))
+            print("Features after reduction: " + str(str(X_train.shape)))
             support = reducer.get_support()
         
         for classifier in classifiers:
+            print("Starting to train %s"%str(type(classifier)))
             s = datetime.now()
             classifier.fit(X_train, y_train)
-            trainTime = (datetime.now() - s).total_seconds()
+            traintime = (datetime.now() - s).total_seconds()
             score = classifier.score(X_test, y_test)
-            results.append((classifier, traintime, score))
-            print("%d\t%s\tTime: %d\tScore:\t%f" % (n, str(type(classifier)), trainTime, score))
+            if reduce > 0:
+                results.append((classifier, traintime, score, support))
+            else:
+                results.append((classifier, traintime, score))
+            print("%s\tTime: %d\tScore:\t%f" %(str(type(classifier)), traintime, score))
     return results
 
-def testSavedClassifier(X, y, classifier, dv):
-    X_test = dv.transform(X)
-    y_test = np.array(y)
+def flattenDict(feature):
+    d = {}
+    for key, value in feature.items():
+        if isinstance(value, dict):
+            for subkey, subvalue in value.items():
+                d[subkey] = subvalue
+        else:
+            d[key] = value
+    return d
 
-    score = classifier.score(X_test, y_test)
-    results = {'score': score}
-    print("Score:\t%f" % score)
-    return results
-
-def searchForParameters(classifiers, crossValidation, maxIter, X_train, y_train, X_test, y_test):
-    print("\n\nStarting to train & Test...")
-    for n, (c, options) in enumerate(classifiers):
-        try:
-            clf = RandomizedSearchCV(c, options, cv=crossValidation, n_iter=maxIter)
-            s = datetime.now()
-            clf.fit(X_train, y_train)
-        except ValueError:
-            clf = GridSearchCV(c, options, cv=crossValidation)
-            s = datetime.now()
-            clf.fit(X_train, y_train)
-        time = (datetime.now() - s).total_seconds()
-        y_true, y_pred = y_test, clf.predict(X_test)
-        report = classification_report(y_true, y_pred)
-        best = clf.best_params_
-        print("\t%d\t%s\tTime: %d\tParams::\t%s" % (n, str(type(c)), time, str(clf.best_params_)))
-        print(report)
-
-
-def optimize(X, y, dv, reduce=0, splits=10, trainsize=0.8, classifiers=DEFAULT_CLASSIFIERS_ARGS, crossValidation=10,
-             maxIter=20):
-    warnings.filterwarnings("ignore")
-    sss = StratifiedShuffleSplit(n_splits=splits, train_size=trainsize)
-    startTime = datetime.now()
-    for i, (train_index, test_index) in enumerate(sss.split(X, y)):
-        startIterationTime = datetime.now()
-        print("Starting iteration %d: " % i + str(startIterationTime))
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-        if reduce > 0:
-            (X_train, X_test, dvc) = reduceFeatures(X_train, X_test, y_train, dv, percent=reduce)
-
-        searchForParameters(classifiers, crossValidation, maxIter, X_train, y_train, X_test, y_test)
-
-        stopIterationTime = datetime.now()
-        print("Iteration time:\t%d" % (stopIterationTime - startIterationTime).total_seconds())
-        print("Total elapsed time:\t%d" % (stopIterationTime - startTime).total_seconds())
-
-
-def processTweets(jsonFileName=JSON_DIR + "sarcastic/unique.json", sarcastic=True, save=True, n=None, extra=""):
-    if n:
-        start = datetime.now()
-        tweets = tweet_iterate(jsonFileName, key="text")
-        tweets = islice(tweets, n)
-        feats = [(feature(tweet), sarcastic) for tweet in tweets]
-        print((datetime.now() - start).total_seconds())
-        if save:
-            saveFeatures(feats, sarcastic, extra)
-        return feats
+def flatten(X,y=None):
+    if y:
+        return (flattenDict(x) for x in X), y
     else:
-        start = datetime.now()
-        tweets = tweet_iterate(jsonFileName, key="text")
-        feats = [(feature(tweet), sarcastic) for tweet in tweets]
-        print((datetime.now() - start).total_seconds())
-        if save:
-            saveFeatures(feats, sarcastic, extra)
-        return feats
-    
-def processReddit(jsonFileName=JSON_DIR + "sarcastic/unique.json", sarcastic=True, save=True, n=None, extra=""):
-    if n:
-        start = datetime.now()
-        tweets = tweet_iterate(jsonFileName, key="text")
-        tweets = islice(tweets, n)
-        feats = [(featureReddit(tweet), sarcastic) for tweet in tweets]
-        print((datetime.now() - start).total_seconds())
-        if save:
-            saveFeatures(feats, sarcastic, extra)
-        return feats
-    else:
-        start = datetime.now()
-        tweets = tweet_iterate(jsonFileName, key="text")
-        feats = [(featureReddit(tweet), sarcastic) for tweet in tweets]
-        print((datetime.now() - start).total_seconds())
-        if save:
-            saveFeatures(feats, sarcastic, extra)
-        return feats
-
-
-def saveFeatures(feats, sarcastic, extra=""):
-    if sarcastic:
-        sarcastic = 'sarcastic'
-    else:
-        sarcastic = 'serious'
-    file = PICKLED_FEATS_DIR + sarcastic + 'Feats' + extra + '.pickle'
-    pickle.dump(feats, open(file, 'wb'))
-
-
-def loadFeatures(sarcastic, extra=""):
-    if sarcastic:
-        sarcastic = 'sarcastic'
-    else:
-        sarcastic = 'serious'
-    file = PICKLED_FEATS_DIR + sarcastic + 'Feats' + extra + '.pickle'
-    feats = pickle.load(open(file, 'rb'))
-    return feats
-
-def flattenFeatureDicts(features, leaveOut=None):
-    featuresFlattened = []
-    for feature in features:
-        d = {}
-        for key, value in feature.items():
-            if key != leaveOut:
-                if isinstance(value, dict):
-                    for subkey, subvalue in value.items():
-                        d[subkey] = subvalue
-                else:
-                    d[key] = value
-        featuresFlattened.append(d)
-    return featuresFlattened
-
+        return (flattenDict(x) for x in X)
 
 def saveVectorizer(dv, X=None, y=None, extra=''):
     if X is not None and y is not None:
@@ -242,48 +85,21 @@ def saveVectorizer(dv, X=None, y=None, extra=''):
     else:
         pickle.dump(dv, open(PICKLED_FEATS_DIR + 'dv' + extra  + '.pickle', 'wb'))
 
+def split_feat(gen, n):
+    def create_generator(it, n):
+        return (item[n] for item in it)
+    G = tee(gen, n)
+    return [create_generator(g, n) for n, g in enumerate(G)]
 
-def loadVectorizer(features=True, extra=''):
-    if features:
-        (dv, X, y) = pickle.load(open(PICKLED_FEATS_DIR + 'Xydv' + extra  + '.pickle', 'rb'))
-        return dv, X, y
+def predict(listOfString, classifier, dvp, cleanTokens):
+    listOfFeats = [flattenDict(feature(s, cleanTokens)) for s in listOfString]
+    X = dvp.transform(listOfFeats)
+    prediction = classifier.predict(X)
+    invert_op = getattr(c, "predict_proba", None)
+    if callable(invert_op):
+        preProb = classifier.predict_proba(X)
+        return {'classifier':classifier, 'prediction': prediction, 'prediction_probabilities':preProb}
     else:
-        dv = pickle.load(open(PICKLED_FEATS_DIR + 'dv' + extra  + '.pickle', 'rb'))
-        return dv
-
-
-def vectorize(features, sarcasm, fit=True, save=True, extra=''):
-    dv = DictVectorizer()
-    if fit:
-        (X, y) = (dv.fit_transform(features), np.array(sarcasm))
-        if save:
-            saveVectorizer(dv, X, y, extra)
-        return dv, X, y
-    else:
-        dv.transform(features)
-        if save:
-            saveVectorizer(dv, extra)
-        return dv
-
-
-def vectorizerTransform(dv, features, sarcasm):
-    (X, y) = (dv.transform(features), np.array(sarcasm))
-    return X, y
-
-
-def predict(listOfString, classifierDV):
-    listOfFeats = flattenFeatureDicts([feature(s) for s in listOfString])
-    r = {}
-    dv = classifierDV[1]
-    X = dv.transform(listOfFeats)
-    for i, c in enumerate(classifierDV[0]):
-        prediction = c.predict(X)
-        
-        invert_op = getattr(c, "predict_proba", None)
-        if callable(invert_op):
-            preProb = c.predict_proba(X)
-            r[(i,str(type(c)))] = {'prediction': prediction, 'prediction_probabilities':preProb}
-        else:
-            r[(i,str(type(c)))] = {'prediction': time}
+        return {'classifier':classifier, 'prediction': prediction}
     print(r)
     return r
