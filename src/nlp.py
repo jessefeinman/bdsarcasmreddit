@@ -293,23 +293,15 @@ def stripReddit(tweet):
 
 list_re = [
     r"(\/sarcasm)",
-    r"(<\/?sarcasm>)",
     r"(&lt;\/?sarcasm&gt)",
     r"(#sarcasm)",
-    r"( \/s(?![a-zA-Z0-9]))",
-    r"(:\^(?! ?[D)(\[\]]))"
+    r"(\s*\/s\s*$)"
           ]
 sarcasm_re = re.compile('|'.join(list_re))
-que = re.compile(r"(\[\?\](?!\())")
-exc = re.compile(r"(\[!\](?!\())")
-period = re.compile(r"(\.~)|(\. ~)")
 
-def stripSarcasm(tweet):
-    tweet = sarcasm_re.sub('', tweet)
-    tweet = que.sub('?', tweet)
-    tweet = exc.sub('!', tweet)
-    tweet = period.sub('.',tweet)
-    return tweet
+def stripSarcasm(comment):
+    comment = sarcasm_re.sub('', comment)
+    return comment
 
 def cleanTokensReddit(tweet):
     tweet = stripReddit(tweet)
@@ -333,15 +325,18 @@ def feature(text, cleanTokens):
     vow = gramFreqFeat(vowelGrams, tokens, 1, 4, 'vow')
     pos = gramFreqFeat(grams, postags, 1, 4, 'pos')
     suf = gramFreqFeat(grams, sufftok, 1, 4, 'suf')
-    return {**grm,
-            **syl,
-            **vow,
-            **pos,
-            **suf,
-            'puncuationFreq': puncuationFreq,
+    
+    out = {'puncuationFreq': puncuationFreq,
             'normSuffFreq': normSuffFreq,
             'norm2SuffFreq': normSuffFreq,
             'sentimentVader': vader,
             'sentimentLiu': liu,
             'capFreq': capFreq
             }
+    out.update(grm)
+    out.update(syl)
+    out.update(vow)
+    out.update(pos)
+    out.update(grm)
+    out.update(suf)
+    return out

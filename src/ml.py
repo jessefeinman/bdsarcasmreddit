@@ -7,32 +7,14 @@ from os import listdir
 from random import shuffle
 
 import numpy as np
-from json_io import tweet_iterate
 from nlp import *
 from sklearn.ensemble import VotingClassifier
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.feature_selection import SelectPercentile, SelectKBest, f_classif
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit
 
-DEFAULT_CLASSIFIERS = [
-    LogisticRegression(n_jobs=-1)
-    # LogisticRegression(solver='sag', max_iter=1000, n_jobs=-1, warm_start=True),
-    # SGDClassifier(loss='log', penalty='elasticnet', n_jobs=-1),
-    # BernoulliNB(alpha=0.2, binarize=0.4),
-    # MultinomialNB(alpha=0),
-]
-DEFAULT_CLASSIFIERS_ARGS = [
-    # (SGDClassifier(penalty='elasticnet', n_jobs=-1), {'loss':['log','modified_huber','perceptron'], 'penalty':['none','l1','elasticnet','l2']}),
-    # (BernoulliNB(),{'alpha':list(np.arange(0,20,0.1)), 'binarize':list(np.arange(0.1,0.9,0.1))}),
-    # (MultinomialNB(),{'alpha':list(np.arange(0,20,0.1))})
-]
-FILENAME_REGEX = r'[ :<>".*,|\/]+'
-PICKLED_FEATS_DIR = 'pickledfeatures/'
-JSON_DIR = '../json/'
-
-def trainTest(X, y, classifiers=DEFAULT_CLASSIFIERS, reduce=0, splits=10, trainsize=0.8, testsize=0.2):
+def trainTest(X, y, classifiers, reduce=0, splits=10, trainsize=0.8, testsize=0.2):
     sss = StratifiedShuffleSplit(n_splits=splits, test_size=testsize, train_size=trainsize)
     results = []
     for i, (train_index, test_index) in enumerate(sss.split(X, y)):
@@ -77,13 +59,6 @@ def flatten(X,y=None):
         return (flattenDict(x) for x in X), y
     else:
         return (flattenDict(x) for x in X)
-
-def saveVectorizer(dv, X=None, y=None, extra=''):
-    if X is not None and y is not None:
-        pickle.dump((dv, X, y), open(PICKLED_FEATS_DIR + 'Xydv' + extra  + '.pickle', 'wb'))
-        pickle.dump(dv, open(PICKLED_FEATS_DIR + 'dv' + extra  + '.pickle', 'wb'))
-    else:
-        pickle.dump(dv, open(PICKLED_FEATS_DIR + 'dv' + extra  + '.pickle', 'wb'))
 
 def split_feat(gen, n):
     def create_generator(it, n):
