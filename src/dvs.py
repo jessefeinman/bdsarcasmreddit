@@ -13,7 +13,13 @@ class DictVectorizerPartial(DictVectorizer):
         self.feature_names_ = feature_names
         self.vocabulary_ = vocab
     
-    def partial_fit(self, x=[], vocab={}):
+    def fit(self, x=[]):
+        self.partial_fit(self, x=[], vocab={})
+
+    def partial_fit(self, x=[], vocab=None):
+        if not vocab:
+            vocab = self.vocabulary_
+
         for xp in x:
             for key in xp:
                 vocab.setdefault(key, len(vocab))
@@ -31,15 +37,17 @@ class DictVectorizerPartial(DictVectorizer):
                     indices.append(index)
                     X.append(self.dtype(val))
                 elif key in vocab:
-                    indices.append(vocab[f])
+                    indices.append(vocab[key])
                     X.append(self.dtype(val))
             indptr.append(len(indices))
         self.vocabulary_ = vocab
         self.feature_names_ = sorted(vocab, key=vocab.get)
+        N = len(vocab)-1
+        M = len(indptr)-1
         if y:
-            return sp.csr_matrix((X, indices, indptr), dtype=self.dtype), y
+            return sp.csr_matrix((X, indices, indptr), dtype=self.dtype, shape=(M, N)), y
         else:
-            return sp.csr_matrix((X, indices, indptr), dtype=self.dtype)
+            return sp.csr_matrix((X, indices, indptr), dtype=self.dtype, shape=(M, N))
     
     def transform(self, x, y=None):
         return self._fit_transform(x, y, fit=False, vocab=self.vocabulary_)

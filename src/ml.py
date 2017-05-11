@@ -95,7 +95,7 @@ def predict(listOfString, classifier, dvp, cleanTokens):
     listOfFeats = [flattenDict(feature(s, cleanTokens)) for s in listOfString]
     X = dvp.transform(listOfFeats)
     prediction = classifier.predict(X)
-    invert_op = getattr(c, "predict_proba", None)
+    invert_op = getattr(classifier, "predict_proba", None)
     if callable(invert_op):
         preProb = classifier.predict_proba(X)
         return {'classifier':classifier, 'prediction': prediction, 'prediction_probabilities':preProb}

@@ -31,16 +31,11 @@ def list_to_json(lst, path, old_format=True):
         with open(path, 'w') as fp:
             json.dump(lst, fp, sort_keys=True, indent=4)
     else:
-        fp = open(path, 'w')
-        fp.write('[\n')
-        for tweet in lst:
-            json.dump({"text": tweet["text"], "id": tweet['id'], "media": tweet["media"], "urls": tweet["urls"]}, fp)
-            fp.write(',\n')
-        fp.close()
-        fp = open(fp.name, 'r+b')
-        fp.seek(-2, SEEK_END)
-        fp.write(bytes("\r\n]", 'utf8'))
-        fp.close()
+        with open(path, 'w') as fp:
+            for i, tweet in enumerate(lst):
+                json.dump({"text": tweet["text"], "id": tweet['id'], "media": tweet["media"], "urls": tweet["urls"]}, fp)
+                if i != len(lst) - 1:
+                    fp.write('\n')
 
 def merge_json_filenames(json_lst):
     """
@@ -144,7 +139,7 @@ def closeFiles(openFiles):
     """
     for file in openFiles:
         file.close()
-        
+
 def processRandomizeJson(sarcastic, json_path, features_path, source, n, cleanTokens):
     """
     takes in a sarcastic boolean, a path to json files, a path to store processed features, a source type an the number of files to create
