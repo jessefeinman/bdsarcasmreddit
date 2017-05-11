@@ -58,7 +58,7 @@ def filterComments(generator):
                     yield (True, ml.flattenDict(nlp.feature(comment['body'], nlp.cleanTokensReddit)))
                 else:
                     pop.append(comment['body'])
-                    if len(pop) == 1:#set to 1300
+                    if len(pop) == 1300:
                         yield (False, ml.flattenDict(nlp.feature(random.choice(pop), nlp.cleanTokensReddit)))
                         pop = []
         except:
