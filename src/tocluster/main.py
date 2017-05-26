@@ -1,8 +1,3 @@
-
-# coding: utf-8
-
-# In[11]:
-
 import json
 import pickle
 from pprint import pprint
@@ -16,35 +11,8 @@ import ml
 import numpy as np
 from dvs import DictVectorizerPartial
 import scipy
-
-
-# In[2]:
-
-list_re = [
-    r"(\/sarcasm)",
-    r"(&lt;\/?sarcasm&gt)",
-    r"(#sarcasm)",
-    r"(\s*\/s\s*$)"
-          ]
-sarcasm_re = re.compile('|'.join(list_re))
-
-
-# In[3]:
-
 import pyspark
-sc = pyspark.SparkContext('local[*]')
-
-
-# In[4]:
-
 from pyspark.sql import SQLContext
-sqlContext = SQLContext(sc)
-
-df_rdd = sqlContext.read.format('json').load('test.json')
-rdd = df_rdd.rdd
-
-
-# In[5]:
 
 def filterComments(generator):
     import nlp
@@ -63,23 +31,12 @@ def filterComments(generator):
                         pop = []
         except:
             pass
-                        
-features = rdd.mapPartitions(filterComments)
-
-
-# In[6]:
 
 def getVocab(gen):
     for sarc, features in gen:
         for key in features:
             yield key
 
-vocab = dict(features.mapPartitions(getVocab).distinct().zipWithIndex().collect())
-
-
-# In[7]:
-
-dvp = DictVectorizerPartial(vocab=vocab)
 def vectorize(gen, dv):
     blocksize = 100000
     sarclst = []
@@ -92,37 +49,37 @@ def vectorize(gen, dv):
             sarclst = []
             featlst = []
     yield (sarclst, dv.transform(featlst))
-vdvp = lambda gen: vectorize(gen, dvp)
 
-csrs = features.mapPartitions(vdvp)
+    
+if __name__=='__main__':
+    list_re = [
+        r"(\/sarcasm)",
+        r"(&lt;\/?sarcasm&gt)",
+        r"(#sarcasm)",
+        r"(\s*\/s\s*$)"
+              ]
+    sarcasm_re = re.compile('|'.join(list_re))
 
+    sc = pyspark.SparkContext('local[*]')
+    sqlContext = SQLContext(sc)
 
-# In[8]:
-
-(sarclst, matricies) = zip(*csrs.collect())
-sarclst = list(sarclst)
-matricies = list(matricies)
-
-
-# In[9]:
-
-y = np.array(reduce(lambda a,b: a+b, sarclst))
-X = scipy.sparse.vstack(matricies, format='csr')
-
-
-# In[12]:
-
-results = ml.trainTest(X,
-                       y,
-                       classifiers=[LogisticRegression(n_jobs=-1)],
-                       reduce=0,
-                       splits=4,
-                       trainsize=0.8,
-                       testsize=0.2)
-pickle.dump(results, open('trained-logistic-classifier.pickle', 'wb'))    
-
-
-# In[ ]:
-
-
-
+    df_rdd = sqlContext.read.format('json').load('/scratch/redditSarcasm/*')
+    rdd = df_rdd.rdd
+    features = rdd.mapPartitions(filterComments)
+    vocab = dict(features.mapPartitions(getVocab).distinct().zipWithIndex().collect())
+    dvp = DictVectorizerPartial(vocab=vocab)
+    vdvp = lambda gen: vectorize(gen, dvp)
+    csrs = features.mapPartitions(vdvp)
+    (sarclst, matricies) = zip(*csrs.collect())
+    sarclst = list(sarclst)
+    matricies = list(matricies)
+    y = np.array(reduce(lambda a,b: a+b, sarclst))
+    X = scipy.sparse.vstack(matricies, format='csr')
+    results = ml.trainTest(X,
+                           y,
+                           classifiers=[LogisticRegression(n_jobs=-1)],
+                           reduce=0,
+                           splits=4,
+                           trainsize=0.8,
+                           testsize=0.2)
+    pickle.dump(results, open('/user/jfeinma00/trained-logistic-classifier.pickle', 'wb'))    

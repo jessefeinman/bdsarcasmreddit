@@ -21,7 +21,7 @@ REDDIT_LINK_RE = "(\[?(https?:\/\/(www\.)?)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]
 lemma = WordNetLemmatizer()
 negWords = frozenset(opinion_lexicon.negative())
 posWords = frozenset(opinion_lexicon.positive())
-suffixes = ['able', 'ac', 'acity', 'ade', 'age', 'aholic', 'al', 'algia', 'an', 'ance', 'ant', 'ar', 'ard', 'arian', 'arium', 'ary', 'ate', 'ation', 'ative', 'cide', 'cracy', 'crat', 'cule', 'cy', 'cycle', 'dom', 'dox', 'ectomy', 'ed', 'ee', 'eer', 'emia', 'en', 'ence', 'ency', 'ent', 'er', 'ern', 'escence', 'ese', 'esque', 'ess', 'est', 'etic', 'ette', 'ful', 'fy', 'gam', 'gamy', 'gon', 'gonic', 'hood', 'ial', 'ian', 'ian', 'iasis', 'iatric', 'ible', 'ic', 'ical', 'ile', 'ily', 'ine', 'ing', 'ion', 'ious', 'ish', 'ism', 'ist', 'ite', 'itis', 'ity', 'ive', 'ization', 'ize', 'less', 'let', 'like', 'ling', 'log', 'loger', 'logist', 'ly', 'ment', 'ness', 'ocity', 'oholic', 'oid', 'ology', 'oma', 'onym', 'opia', 'opsy', 'or', 'orium', 'ory', 'osis', 'ostomy', 'otomy', 'ous', 'path', 'pathy', 'phobia', 'phone', 'phyte', 'plegia', 'plegic', 'pnea', 's', 'scope', 'scopy', 'scribe', 'script', 'sect', 'ship', 'sion', 'some', 'sophic', 'sophy', 'th', 'tion', 'tome', 'tomy', 'trophy', 'tude', 'ty', 'ular', 'uous', 'ure', 'ward', 'ware', 'wise', 'y']
+suffixes = list(line.rstrip() for line in open("suffixes.txt"))
 vader = SentimentIntensityAnalyzer()
 d = cmudict.dict()
 

@@ -60,4 +60,3 @@ class DictVectorizerPartial(DictVectorizer):
         
     def fit_transform(self, x, y=None):
         return self._fit_transform(x, y, fit=True, vocab={})
-

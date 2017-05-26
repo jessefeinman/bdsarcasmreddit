@@ -12,12 +12,12 @@ from sklearn.ensemble import VotingClassifier
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.feature_selection import SelectPercentile, SelectKBest, f_classif
 from sklearn.metrics import classification_report
-from sklearn.cross_validation import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit
 
 def trainTest(X, y, classifiers, reduce=0, splits=10, trainsize=0.8, testsize=0.2):
-    sss = StratifiedShuffleSplit(y, n_iter=splits, test_size=testsize, train_size=trainsize)
+    sss = StratifiedShuffleSplit(n_splits=splits, test_size=testsize, train_size=trainsize)
     results = []
-    for i, (train_index, test_index) in enumerate(sss):
+    for i, (train_index, test_index) in enumerate(sss.split(X, y)):
         X_train = X[train_index]
         y_train = y[train_index]
         X_test = X[test_index]
